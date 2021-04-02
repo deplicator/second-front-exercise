@@ -9,7 +9,30 @@
 
     <script src="js/jquery/jquery-3.6.0.min.js"></script>
     <script src="js/bootstrap/bootstrap.min.js"></script>
+
+    <style>
+        .book-row {
+            margin-top: 1em;
+        }
+    </style>
+
     <script>
+        function figureitout(thing) {
+            let retValue = 'Unknown';
+
+            switch (typeof(thing)) {
+                case 'string':
+                    retValue = thing;
+                    break;
+
+                case 'object':
+                    retValue = thing[0];
+                    break;
+            }
+
+            return retValue;
+        }
+
         $(document).ready(function() {
 
             // Search button clicked
@@ -20,17 +43,40 @@
                 // Check if search has text.
                 if (searchFor !== '') {
 
-                    $.getJSON('http://openlibrary.org/search.json?q=the+lord+of+the+rings', function(data) {
-                        console.log(data);
-                        var items = [];
-                        $.each(data, function(key, val) {
-                            items.push("<li id='" + key + "'>" + val + "</li>");
-                        });
+                    // Format search string.
+                    searchFor = searchFor.split(' ');
+                    let searchString = '';
+                    searchFor.forEach((item, i) => {
+                        searchString += '+' + item;
+                    });
+                    searchString = searchString.substring(1);
 
-                        $("<ul/>", {
-                            "class": "my-new-list",
-                            html: items.join("")
-                        }).appendTo("body");
+                    $.getJSON('http://openlibrary.org/search.json?q=' + searchString, function(data) {
+
+                        // Replace everything in results window.
+                        $('#resultWindow').html('<div>Number of Results: <span id = "numFound">' + data.numFound + '</span></div>');
+
+                        for (let i = 0; i < data.docs.length; i++) {
+
+                            let title = figureitout(data.docs[i].title);
+                            let author = figureitout(data.docs[i].author_name);
+                            let isbn = figureitout(data.docs[i].isbn);
+
+                            let bookData = {
+                                title: title,
+                                author: author,
+                                isbn: isbn
+                            };
+
+                            let temp = $.trim($('#bookTemplate').html());
+                            var x = temp.replace(/{{title}}/ig, title);
+                            x = x.replace(/{{author}}/ig, author);
+                            x = x.replace(/{{isbn}}/ig, isbn);
+                            $('#resultWindow').append(x);
+
+
+                        }
+
                     });
 
                 } else {
@@ -44,7 +90,7 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">Navbar</a>
+            <a class="navbar-brand" href="#">Book Search</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -54,23 +100,7 @@
                         <a class="nav-link active" aria-current="page" href="#">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Link</a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            Dropdown
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="#">Action</a></li>
-                            <li><a class="dropdown-item" href="#">Another action</a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item" href="#">Something else here</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">Disabled</a>
+                        <a class="nav-link" href="#">About</a>
                     </li>
                 </ul>
                 <div class="d-flex">
@@ -81,6 +111,24 @@
         </div>
     </nav>
 
+
+    <div class="container">
+        <div id="resultWindow">
+            <div id="noResults">Search to show results.</div>
+        </div>
+    </div>
+
+
+    <!-- Template for displaing books -->
+    <script id="bookTemplate" type="text/html">
+        <div class="card" style="width: 18rem;">
+            <div class="card-body">
+                <h5 class="card-title">{{title}}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">{{author}}</h6>
+                <p class="card-text">{{isbn}}</p>
+            </div>
+        </div>
+    </script>
 </body>
 
 </html>
