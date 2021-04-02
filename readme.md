@@ -1,4 +1,4 @@
-# Exercise for Second Front Systems
+# Exercise for Second Front Systems - Some Kind of Book Search
 
 https://github.com/second-front/exercise
 
