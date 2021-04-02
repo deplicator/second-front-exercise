@@ -33,6 +33,25 @@
             return retValue;
         }
 
+        /**
+         * Replace {{vars}} in template.
+         * @param template - jquery element of template to use.
+         * @param data - object to use to replace template variables.
+         * @return - jquery element with template vars repalced by data.
+         */
+        function replaceTemplateVars(template, data) {
+
+            let el = template;
+
+            for (const each in data) {
+                var re = new RegExp('{{' + each + '}}', 'g');
+                el = el.replace(re, data[each])
+            }
+
+            return el;
+        }
+
+
         $(document).ready(function() {
 
             // Search button clicked
@@ -53,6 +72,19 @@
 
                     $.getJSON('http://openlibrary.org/search.json?q=' + searchString, function(data) {
 
+                        if (data.numFound === 0) {
+                            $.getJSON('https://aws.random.cat/meow', function(data) {
+
+                                data = {
+                                    caturl: data.file,
+                                    searchString: searchString
+                                }
+
+                                let helpTemplate = replaceTemplateVars($.trim($('#searchNoResultsTemplate').html()), data);
+                                $('#resultWindow').html(helpTemplate);
+                            });
+                        }
+
                         // Replace everything in results window.
                         $('#resultWindow').html('<div>Number of Results: <span id = "numFound">' + data.numFound + '</span></div>');
 
@@ -68,19 +100,22 @@
                                 isbn: isbn
                             };
 
-                            let temp = $.trim($('#bookTemplate').html());
-                            var x = temp.replace(/{{title}}/ig, title);
-                            x = x.replace(/{{author}}/ig, author);
-                            x = x.replace(/{{isbn}}/ig, isbn);
-                            $('#resultWindow').append(x);
-
-
+                            let bookTemplate = replaceTemplateVars($.trim($('#bookTemplate').html()), bookData);
+                            $('#resultWindow').append(bookTemplate);
                         }
-
                     });
 
-                } else {
-                    console.log('nothing to search for')
+                } else { // If no text to serach for, show help.
+                    $.getJSON('https://aws.random.cat/meow', function(data) {
+
+                        catUrl = {
+                            caturl: data.file
+                        }
+
+                        let helpTemplate = replaceTemplateVars($.trim($('#searchHelpTemplate').html()), catUrl);
+                        $('#resultWindow').html(helpTemplate);
+                    });
+
                 }
             });
         });
@@ -114,14 +149,40 @@
 
     <div class="container">
         <div id="resultWindow">
+
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-primary">&#60;</button>
+                <button type="button disabled" class="btn btn-primary" disabled>Middle</button>
+                <button type="button" class="btn btn-primary">&#62;</button>
+            </div>
             <div id="noResults">Search to show results.</div>
         </div>
     </div>
 
 
+    <!--Template for search help. -->
+    <script id="searchHelpTemplate" type="text/html">
+        <div id="searchHelp" class="card mt-4">
+            <div class="card-body">
+                <p class="card-text"><b>Sorry you must enter text in the Seach field.</b> Check out this cat while you think of something to search for.</p>
+            </div>
+            <img src="{{caturl}}" class="card-img-top" alt="a cat">
+        </div>
+    </script>
+
+    <!--Template for no results. -->
+    <script id="searchNoResultsTemplate" type="text/html">
+        <div id="searchHelp" class="card mt-4">
+            <div class="card-body">
+                <p class="card-text"><b>Sorry '{{searchString}}' has no results.</b> Here is a cat picture while you think up something new to search for.</p>
+            </div>
+            <img src="{{caturl}}" class="card-img-top" alt="a cat">
+        </div>
+    </script>
+
     <!-- Template for displaing books -->
     <script id="bookTemplate" type="text/html">
-        <div class="card" style="width: 18rem;">
+        <div class="card">
             <div class="card-body">
                 <h5 class="card-title">{{title}}</h5>
                 <h6 class="card-subtitle mb-2 text-muted">{{author}}</h6>
