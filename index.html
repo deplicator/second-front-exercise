@@ -10,13 +10,10 @@
     <script src="js/jquery/jquery-3.6.0.min.js"></script>
     <script src="js/bootstrap/bootstrap.min.js"></script>
 
-    <style>
-        .book-row {
-            margin-top: 1em;
-        }
-    </style>
-
     <script>
+        let currentPage = 1; //eh it's a global
+        let maxPages = 0;
+
         function figureitout(thing) {
             let retValue = 'Unknown';
 
@@ -44,80 +41,123 @@
             let el = template;
 
             for (const each in data) {
-                var re = new RegExp('{{' + each + '}}', 'g');
+                let re = new RegExp('{{' + each + '}}', 'g');
                 el = el.replace(re, data[each])
             }
 
             return el;
         }
 
+        /* Resets resultsWindow to default. */
+        function clearResutls() {
+            $('#resultWindow').html('<div id="noResults">Search to show results.</div>');
+        }
+
+        /* */
+        function search() {
+            let searchFor = $('#searchFor').val().trim();
+
+            // Check if search has text.
+            if (searchFor !== '') {
+
+                // Format search string.
+                searchFor = searchFor.split(' ');
+                let searchString = '';
+                searchFor.forEach((item, i) => {
+                    searchString += '+' + item;
+                });
+                searchString = searchString.substring(1);
+
+                let query = 'http://openlibrary.org/search.json?q=' + searchString + '&page=' + currentPage.toString()
+
+                // API call to Open Library.
+                $.getJSON(query, function(data) {
+
+                    // Display a cat if no results are found :(
+                    if (data.numFound === 0) {
+                        $.getJSON('https://aws.random.cat/meow', function(data) {
+
+                            data = {
+                                caturl: data.file,
+                                searchString: searchString
+                            }
+
+                            let helpTemplate = replaceTemplateVars($.trim($('#searchNoResultsTemplate').html()), data);
+                            $('#resultWindow').html(helpTemplate);
+                        });
+                    }
+
+                    // Replace everything in results window.
+                    let resultsData = {
+                        first: data.start + 1,
+                        last: data.start + data.docs.length,
+                        total: data.numFound
+                    }
+                    let pagesTemplate = replaceTemplateVars($.trim($('#pagesTemplate').html()), resultsData);
+                    $('#resultWindow').html(pagesTemplate);
+                    maxPages = parseInt(data.numFound / 100) + 1
+
+
+                    for (let i = 0; i < data.docs.length; i++) {
+
+                        let title = figureitout(data.docs[i].title);
+                        let author = figureitout(data.docs[i].author_name);
+                        let isbn = figureitout(data.docs[i].isbn);
+
+                        let bookData = {
+                            title: title,
+                            author: author,
+                            isbn: isbn
+                        };
+
+                        let bookTemplate = replaceTemplateVars($.trim($('#bookTemplate').html()), bookData);
+                        $('#resultWindow').append(bookTemplate);
+                    }
+                });
+
+            } else { // If no text to serach for, show help.
+                $.getJSON('https://aws.random.cat/meow', function(data) {
+
+                    catUrl = {
+                        caturl: data.file
+                    }
+
+                    let helpTemplate = replaceTemplateVars($.trim($('#searchHelpTemplate').html()), catUrl);
+                    $('#resultWindow').html(helpTemplate);
+                });
+
+            }
+        }
+
 
         $(document).ready(function() {
 
+            clearResutls();
+
+            $('#home').click(function() {
+                clearResutls();
+            });
+
             // Search button clicked
             $('#search').click(function() {
-
-                let searchFor = $('#searchFor').val().trim();
-
-                // Check if search has text.
-                if (searchFor !== '') {
-
-                    // Format search string.
-                    searchFor = searchFor.split(' ');
-                    let searchString = '';
-                    searchFor.forEach((item, i) => {
-                        searchString += '+' + item;
-                    });
-                    searchString = searchString.substring(1);
-
-                    $.getJSON('http://openlibrary.org/search.json?q=' + searchString, function(data) {
-
-                        if (data.numFound === 0) {
-                            $.getJSON('https://aws.random.cat/meow', function(data) {
-
-                                data = {
-                                    caturl: data.file,
-                                    searchString: searchString
-                                }
-
-                                let helpTemplate = replaceTemplateVars($.trim($('#searchNoResultsTemplate').html()), data);
-                                $('#resultWindow').html(helpTemplate);
-                            });
-                        }
-
-                        // Replace everything in results window.
-                        $('#resultWindow').html('<div>Number of Results: <span id = "numFound">' + data.numFound + '</span></div>');
-
-                        for (let i = 0; i < data.docs.length; i++) {
-
-                            let title = figureitout(data.docs[i].title);
-                            let author = figureitout(data.docs[i].author_name);
-                            let isbn = figureitout(data.docs[i].isbn);
-
-                            let bookData = {
-                                title: title,
-                                author: author,
-                                isbn: isbn
-                            };
-
-                            let bookTemplate = replaceTemplateVars($.trim($('#bookTemplate').html()), bookData);
-                            $('#resultWindow').append(bookTemplate);
-                        }
-                    });
-
-                } else { // If no text to serach for, show help.
-                    $.getJSON('https://aws.random.cat/meow', function(data) {
-
-                        catUrl = {
-                            caturl: data.file
-                        }
-
-                        let helpTemplate = replaceTemplateVars($.trim($('#searchHelpTemplate').html()), catUrl);
-                        $('#resultWindow').html(helpTemplate);
-                    });
-
-                }
+                currentPage = 1;
+                search();
             });
+        });
+
+
+        $(document).on('click', '#prev', function() {
+            if (currentPage > 1) {
+                currentPage = currentPage - 1;
+                search();
+            }
+        });
+
+        $(document).on('click', '#next', function() {
+            if (currentPage < maxPages) {
+                currentPage = currentPage + 1;
+                search();
+            }
         });
     </script>
 </head>
@@ -132,10 +172,10 @@
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link active" aria-current="page" href="#">Home</a>
+                        <a id="home" class="nav-link active" aria-current="page" href="#">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">About</a>
+                        <a class="nav-link" href="http://github.com/deplicator/second-front-exercise">About</a>
                     </li>
                 </ul>
                 <div class="d-flex">
@@ -149,12 +189,6 @@
 
     <div class="container">
         <div id="resultWindow">
-
-            <div class="btn-group" role="group">
-                <button type="button" class="btn btn-primary">&#60;</button>
-                <button type="button disabled" class="btn btn-primary" disabled>Middle</button>
-                <button type="button" class="btn btn-primary">&#62;</button>
-            </div>
             <div id="noResults">Search to show results.</div>
         </div>
     </div>
@@ -177,6 +211,15 @@
                 <p class="card-text"><b>Sorry '{{searchString}}' has no results.</b> Here is a cat picture while you think up something new to search for.</p>
             </div>
             <img src="{{caturl}}" class="card-img-top" alt="a cat">
+        </div>
+    </script>
+
+    <!-- Template for pagination -->
+    <script id="pagesTemplate" type="text/html">
+        <div class="btn-group" role="group">
+            <button id="prev" type="button" class="btn btn-primary">&#60;</button>
+            <button type="button disabled" class="btn btn-primary" disabled>{{first}} - {{last}} of {{total}}</button>
+            <button id="next" type="button" class="btn btn-primary">&#62;</button>
         </div>
     </script>
 
