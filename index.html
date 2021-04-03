@@ -55,6 +55,23 @@
             $('#resultWindow').html('<div id="noResults" class="mt-4">Search to show results.</div>');
         }
 
+        /* Put a cat at end of search results. */
+        function getEndCat() {
+            setTimeout(function() {
+
+                $.getJSON('https://aws.random.cat/meow', function(data) {
+
+                    catUrl = {
+                        caturl: data.file
+                    }
+
+                    catpic = replaceTemplateVars($('<div><p><b>End of Results</b></p><img src="{{caturl}}" /></div>').html(), catUrl);
+                    $('#resultWindow').append(catpic);
+                });
+
+            }, 1000);
+        }
+
         /* */
         function search() {
             let searchFor = currentSearch;
@@ -127,6 +144,11 @@
                         $('#resultWindow').append(bookDetailsTemplate);
                     }
                 });
+
+                // Last page, show a cat!
+                if (currentPage == maxPages) {
+                    getEndCat();
+                }
 
             } else { // If no text to serach for, show help.
                 $.getJSON('https://aws.random.cat/meow', function(data) {
