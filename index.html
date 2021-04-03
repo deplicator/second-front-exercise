@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-    <title>Some Kind of Book Search</title>
+    <title>Some Kind of Book Search (now with cats)</title>
     <meta charset="utf-8">
 
     <link rel="stylesheet" href="css/bootstrap.min.css">
@@ -13,8 +13,10 @@
     <script>
         let currentPage = 1; //eh it's a global
         let maxPages = 0;
+        let currentSearch = ''
 
-        function figureitout(thing) {
+        /* Some results can be in an array, deal with that here. */
+        function getFirstThing(thing) {
             let retValue = 'Unknown';
 
             switch (typeof(thing)) {
@@ -50,12 +52,12 @@
 
         /* Resets resultsWindow to default. */
         function clearResutls() {
-            $('#resultWindow').html('<div id="noResults">Search to show results.</div>');
+            $('#resultWindow').html('<div id="noResults" class="mt-4">Search to show results.</div>');
         }
 
         /* */
         function search() {
-            let searchFor = $('#searchFor').val().trim();
+            let searchFor = currentSearch;
 
             // Check if search has text.
             if (searchFor !== '') {
@@ -100,11 +102,12 @@
 
                     for (let i = 0; i < data.docs.length; i++) {
 
-                        let title = figureitout(data.docs[i].title);
-                        let author = figureitout(data.docs[i].author_name);
-                        let isbn = figureitout(data.docs[i].isbn);
+                        let title = getFirstThing(data.docs[i].title);
+                        let author = getFirstThing(data.docs[i].author_name);
+                        let isbn = getFirstThing(data.docs[i].isbn);
 
                         let bookData = {
+                            id: i,
                             title: title,
                             author: author,
                             isbn: isbn
@@ -112,6 +115,16 @@
 
                         let bookTemplate = replaceTemplateVars($.trim($('#bookTemplate').html()), bookData);
                         $('#resultWindow').append(bookTemplate);
+
+                        let bookDetails = {
+                            id: i,
+                            title: title,
+                            author: data.docs[i].author_name,
+                            isbn: data.docs[i].isbn
+                        };
+
+                        let bookDetailsTemplate = replaceTemplateVars($.trim($('#bookDetailsTemplate').html()), bookDetails);
+                        $('#resultWindow').append(bookDetailsTemplate);
                     }
                 });
 
@@ -134,6 +147,17 @@
 
             clearResutls();
 
+            let queryString = decodeURI(window.location.search);
+            if (queryString !== '') {
+                queryString = queryString.substring(1);
+                queryString = queryString.split('=');
+                if (queryString[0] == 'search') { // not expecting any other params, but they'll be ignored
+                    currentSearch = queryString[1];
+                    $('#searchFor').val(queryString[1])
+                    search()
+                }
+            }
+
             $('#home').click(function() {
                 clearResutls();
             });
@@ -141,10 +165,20 @@
             // Search button clicked
             $('#search').click(function() {
                 currentPage = 1;
+                currentSearch = $('#searchFor').val().trim();
                 search();
             });
-        });
 
+            // Super annoying to not just hit enter.
+            $('#searchFor').keypress(function(e) {
+                if (e.which == 13) {
+                    currentPage = 1;
+                    currentSearch = $('#searchFor').val().trim();
+                    search();
+                    return false; //this is interesting: https://stackoverflow.com/questions/1357118/event-preventdefault-vs-return-false
+                }
+            });
+        });
 
         $(document).on('click', '#prev', function() {
             if (currentPage > 1) {
@@ -165,14 +199,14 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">Book Search</a>
+            <a class="navbar-brand" href="index.html">Book Search</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a id="home" class="nav-link active" aria-current="page" href="#">Home</a>
+                        <a id="home" class="nav-link active" aria-current="page" href="index.html">Home</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="http://github.com/deplicator/second-front-exercise">About</a>
@@ -186,10 +220,8 @@
         </div>
     </nav>
 
-
     <div class="container">
         <div id="resultWindow">
-            <div id="noResults">Search to show results.</div>
         </div>
     </div>
 
@@ -214,7 +246,7 @@
         </div>
     </script>
 
-    <!-- Template for pagination -->
+    <!-- Template for pagination. -->
     <script id="pagesTemplate" type="text/html">
         <div class="btn-group" role="group">
             <button id="prev" type="button" class="btn btn-primary">&#60;</button>
@@ -223,16 +255,38 @@
         </div>
     </script>
 
-    <!-- Template for displaing books -->
+    <!-- Template for displaing books. -->
     <script id="bookTemplate" type="text/html">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">{{title}}</h5>
-                <h6 class="card-subtitle mb-2 text-muted">{{author}}</h6>
-                <p class="card-text">{{isbn}}</p>
+                <h5 class="card-title bookTitle"><a href="#" data-bs-toggle="modal" data-bs-target="#bookDetails-{{id}}">{{title}}</a></h5>
+                <h6 class="card-subtitle mb-2 text-muted"><a href="index.html?search={{author}}">{{author}}</a></h6>
+                <p class="card-text"><a href="index.html?search={{isbn}}">{{isbn}}</a></p>
             </div>
         </div>
     </script>
+
+    <!-- Template for displaing book details. -->
+    <script id="bookDetailsTemplate" type="text/html">
+        <div class="modal fade" id="bookDetails-{{id}}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLabel">{{title}}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p><b>author(s)</b>: {{author}}</p>
+                        <p><b>ISBN(s)</b>: {{isbn}}</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </script>
+
 </body>
 
 </html>

@@ -1,4 +1,5 @@
 var http = require('http');
+const url = require('url');
 var fs = require('fs');
 var path = require('path');
 
@@ -7,7 +8,9 @@ var path = require('path');
 var port = 8081;
 
 http.createServer(function(request, response) {
-    var filePath = '.' + request.url;
+
+    var filePath = '.' + request.url.split('?')[0]; // Ignore URL params
+
     if (filePath == './') {
         filePath = './index.html';
     }
